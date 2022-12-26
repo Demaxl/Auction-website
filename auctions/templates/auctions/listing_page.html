@@ -1,0 +1,86 @@
+{% extends 'auctions/layout.html' %}
+
+
+{% block title %}
+    {{ listing.title }}
+{% endblock title %}
+
+{% block body %}
+
+<h2>Listing: {{ listing.title }}</h2>
+
+{% if request.user.is_authenticated %}
+    <form action="{% url 'listing_page' listing.id %}" method="post">
+        {% csrf_token %}
+        {% if listing in request.user.watchlist.all %}
+            <input type="hidden" name="watchlist" value="remove">
+            <input type="submit" value="Remove from watchlist">
+        {% else %}
+        <input type="hidden" name="watchlist" value="add">
+        <input type="submit" value="Add to watchlist">
+        {% endif %}
+    </form>
+{% endif %}
+
+<div class="listing-content">
+    <img src="{{ listing.image }}" alt="{{ listing.title }}" class="listing-image">
+
+    <p>{{ listing.description }}</p>
+
+    {% if listing.is_active %}
+        <h4>Current bid: ${{ listing.current_bid }} ({{ bids|length }} bids)</h4>
+        {% if request.user.is_authenticated %}
+
+            {% if request.user == listing.seller %}
+                <form action="{% url 'listing_page' listing.id %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="close" value="close">
+                    <input type="submit" value="Close auction">
+                </form>
+            {% else %}
+                {% if request.user.username == highest_bidder.user %}
+                    <p>Your bid is the current bid</p>
+                {% endif %}
+
+                <p id="bid-msg">Bid ${{ listing.current_bid|add:"1" }}.00 or higher </p>
+
+                {{ highest_bidder|json_script:"higher-bidder-data" }}
+
+                <form action="{% url 'listing_page' listing.id %}" method="post" name="placeBidForm" onsubmit="return bidFormHandler()">
+                    {% csrf_token %}
+                    <input type="number" name="bid" id="bid" placeholder="Bid">
+                    <input type="submit" value="Place Bid">
+                </form>
+            {% endif %}   
+        {% endif %}
+
+        <h4>Details</h4>
+        <ul>
+            <li>Seller: {{ listing.seller }}</li>
+            <li>Category: {{ listing.category }}</li>
+            <li>Listed on {{ listing.date_created }}</li>
+        </ul>
+
+        <h4>Comments</h4>
+        {% if user.is_authenticated %}
+            <form action="{% url 'listing_page' listing.id %}" method="post">
+                {% csrf_token %}
+                <input type="text" name="comment" id="comment" placeholder="Add comment..">
+                <input type="submit" value="Comment">
+            </form>
+        {% endif %}
+        <ul>
+            {% for comment in comments %}
+                <li>{{ comment.commenter }}: {{ comment.text }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <h4>This listing has ended</h4> 
+        <p><strong>Winning bid: ${{ listing.current_bid }}</strong></p>
+        {% if request.user.username == highest_bidder.user %}
+            <p>Congratulations! You won the auction!!</p>
+        {% endif %}
+
+    {% endif %}
+</div>
+{% endblock body %}
